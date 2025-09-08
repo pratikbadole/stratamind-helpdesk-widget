@@ -1,0 +1,9 @@
+{
+  "name": "stratamind-helpdesk-widget",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
