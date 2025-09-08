@@ -20,19 +20,68 @@
   ));
 
   // very small markdown ( **bold**, *italics*, `code`, numbered/bullet lists )
+// replaces the old mdToHtml
   function mdToHtml(src){
-    let s = escapeHTML(src);
-    s = s.replace(/^(\s*[-*]\s.+)$/gmi, m => `<ul><li>${m.replace(/^[-*]\s*/,'')}</li></ul>`);
-    s = s.replace(/^(\s*\d+\.\s.+)$/gmi, m => `<ol><li>${m.replace(/^\d+\.\s*/,'')}</li></ol>`);
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // merge adjacent <ul>/<ol>
-    s = s.replace(/<\/ul>\s*<ul>/g, '').replace(/<\/ol>\s*<ol>/g, '');
-    // paragraphs
-    s = s.split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
-    return s;
+  // escape first
+  const esc = (s) => s.replace(/[&<>"']/g, m => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
+  ));
+  const lines = (src || '').split(/\r?\n/);
+
+  let html = '';
+  let openList = null; // 'ul' | 'ol' | null
+
+  const closeList = () => {
+    if (openList) { html += `</${openList}>`; openList = null; }
+  };
+
+  for (let raw of lines){
+    const line = raw.trimRight();
+
+    // Headings ### ## #
+    let m;
+    if ((m = line.match(/^(#{1,6})\s+(.*)$/))){
+      closeList();
+      const level = Math.min(m[1].length, 3); // clamp to h3 for bubble scale
+      html += `<h${level}>${esc(m[2])}</h${level}>`;
+      continue;
+    }
+
+    // Ordered list  `1. foo`
+    if ((m = line.match(/^\s*\d+\.\s+(.*)$/))){
+      if (openList && openList !== 'ol'){ closeList(); }
+      if (!openList){ html += '<ol>'; openList = 'ol'; }
+      html += `<li>${esc(m[1])}</li>`;
+      continue;
+    }
+
+    // Unordered list `- foo` or `* foo`
+    if ((m = line.match(/^\s*[-*]\s+(.*)$/))){
+      if (openList && openList !== 'ul'){ closeList(); }
+      if (!openList){ html += '<ul>'; openList = 'ul'; }
+      html += `<li>${esc(m[1])}</li>`;
+      continue;
+    }
+
+    // Blank line ends list
+    if (line.trim() === ''){
+      closeList();
+      html += '<br>';
+      continue;
+    }
+
+    // Normal paragraph line; close any list first
+    closeList();
+    // inline styles: **bold**, *em*, `code`
+    let t = esc(line)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+    html += `<p>${t}</p>`;
   }
+  closeList();
+  return html;
+}
 
   async function typeInto(el, html, delay=8){
     // simple typewriter for HTML strings
