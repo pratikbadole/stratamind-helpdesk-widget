@@ -228,11 +228,19 @@ Reply **not fixed** if it’s still unstable.`;
   }
 
   // ---------- ticket CTA gating ----------
-  function shouldOfferTicket(chat){
-    const lastUser = [...chat.messages].reverse().find(m => m.role === 'user')?.content || '';
-    const saidNotFixed = /\b(not\s+fixed|still\s+not|doesn'?t\s+work|no\s+luck)\b/i.test(lastUser);
-    const enoughAttempts = chat.offers >= 1 || chat.messages.filter(m => m.role==='assistant').length >= 2;
-    return saidNotFixed && enoughAttempts;
+function shouldOfferTicket(chat){
+  const userLast = [...chat.messages].reverse().find(m => m.role === 'user')?.content || '';
+
+  const saidNotFixed = /\b(not\s+fixed|still\s+not|doesn'?t\s+work|no\s+luck)\b/i.test(userLast);
+  const softAck     = /\b(ok|okay|hmm|still|same|nope)\b/i.test(userLast);
+
+  const assistantReplies = chat.messages.filter(m => m.role === 'assistant').length;
+
+  // show if user says "not fixed" after at least one reply,
+  // OR if they've had 2+ assistant replies and they acknowledge but don't confirm success
+  return (saidNotFixed && assistantReplies >= 1) ||
+         (softAck && assistantReplies >= 2);
+}
   }
 
   function insertTicketCTA(){
