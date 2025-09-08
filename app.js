@@ -1,5 +1,5 @@
 (() => {
-  const $ = (sel, root=document) => root.querySelector(sel);
+  const $ = (sel, root = document) => root.querySelector(sel);
   const historyEl = $('#history');
   const messagesEl = $('#messages');
   const form = $('#chatForm');
@@ -11,6 +11,82 @@
   // simple in-memory state
   let chats = [];
   let currentId = null;
+
+  /* ---------------------------
+   * Helpers: rendering & typing
+   * --------------------------- */
+
+  // Render assistant markdown safely
+  function renderMarkdown(md) {
+    // Configure marked (optional tweaks)
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
+    const html = marked.parse(md || '');
+    return DOMPurify.sanitize(html);
+  }
+
+  function escapeHTML(s) {
+    return s.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  // Create a message DOM node
+  function createMessageNode(role, content, meta) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+
+    const body = document.createElement('div');
+
+    if (role === 'assistant') {
+      body.innerHTML = renderMarkdown(content);
+    } else {
+      // user: render as plain text (no markdown)
+      body.textContent = content;
+    }
+
+    div.appendChild(body);
+
+    if (meta) {
+      const sm = document.createElement('small');
+      sm.textContent = meta;
+      div.appendChild(sm);
+    }
+
+    return div;
+  }
+
+  // Typing effect for assistant (progressively renders markdown)
+  async function typeAssistantMessage(container, fullText) {
+    // We’ll re-render markdown in chunks (cheap enough for short replies)
+    const body = container.querySelector('div');
+    if (!body) return;
+
+    let i = 0;
+    const len = fullText.length;
+
+    // speed: ~30–45 chars per frame chunk
+    const chunk = () => {
+      // Add a variable chunk to feel natural
+      const step = 30 + Math.floor(Math.random() * 15);
+      i = Math.min(len, i + step);
+
+      // Re-render the partial markdown safely
+      body.innerHTML = renderMarkdown(fullText.slice(0, i));
+
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      if (i < len) {
+        requestAnimationFrame(chunk);
+      }
+    };
+
+    requestAnimationFrame(chunk);
+  }
+
+  /* ---------------------------
+   * Chat state management
+   * --------------------------- */
 
   function newChat(initial) {
     const id = 'c_' + Date.now();
@@ -38,44 +114,65 @@
     const chat = currentChat();
     messagesEl.innerHTML = '';
     (chat?.messages || []).forEach(m => {
-      const div = document.createElement('div');
-      div.className = 'msg ' + (m.role === 'user' ? 'user' : 'bot');
-      div.innerHTML = `<div>${escapeHTML(m.content)}</div>` + (m.meta ? `<small>${m.meta}</small>` : '');
-      messagesEl.appendChild(div);
+      const node = createMessageNode(m.role, m.content, m.meta);
+      messagesEl.appendChild(node);
     });
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function escapeHTML(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) }
+  /* ---------------------------
+   * Model calls
+   * --------------------------- */
 
-  async function sendToModel(messages){
+  async function sendToModel(messages) {
     // Try Netlify function; fall back to mock if not configured
     if (window.USE_MOCK) return mockReply(messages);
 
-    try{
+    try {
       const r = await fetch('/.netlify/functions/chat-proxy', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })
       });
       if (!r.ok) throw new Error('proxy unavailable');
       const data = await r.json();
       return data.reply || '(No reply)';
-    } catch(e){
+    } catch (e) {
       console.warn('Falling back to mock:', e.message);
       return mockReply(messages);
     }
   }
 
-  function mockReply(messages){
-    const last = messages[messages.length-1]?.content || '';
-    // tiny heuristic
-    if (/vpn|wireguard|openvpn/i.test(last)) return "To set up VPN: 1) Install the client, 2) Import your config, 3) Connect. I can tailor steps if you tell me your OS.";
-    if (/outlook|mail/i.test(last)) return "Try: restart Outlook, check account > sync settings, and ensure MFA is signed in. Want the exact steps?";
-    return "I’m running in demo mode. Tell me your issue (e.g., “Teams mic not working on Mac”), and I’ll guide you step-by-step.";
+  function mockReply(messages) {
+    const last = messages[messages.length - 1]?.content || '';
+    if (/vpn|wireguard|openvpn/i.test(last)) {
+      return [
+        "**VPN Setup (Quick):**",
+        "1. Install your VPN client.",
+        "2. Import the config file (or login).",
+        "3. Click **Connect**.",
+        "",
+        "_Tell me your OS and client (e.g., Windows + WireGuard) and I'll give exact steps._"
+      ].join('\n');
+    }
+    if (/outlook|mail/i.test(last)) {
+      return [
+        "**Outlook fix checklist:**",
+        "- Restart Outlook",
+        "- Check **File → Account Settings**",
+        "- Verify **Work/School account** is signed in (MFA OK)",
+        "- **Send/Receive** → Update folders",
+        "",
+        "_Want exact steps for Windows or macOS?_"
+      ].join('\n');
+    }
+    return "I’m running in demo mode. Tell me your issue (e.g., **Teams mic not working on Mac**) and I’ll guide you step-by-step.";
   }
 
-  // events
+  /* ---------------------------
+   * Events
+   * --------------------------- */
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -83,19 +180,34 @@
     if (!currentId) newChat(text.slice(0, 40));
 
     const chat = currentChat();
-    chat.messages.push({ role:'user', content:text });
-    renderMessages();
+
+    // Add user message
+    const userMsg = { role: 'user', content: text };
+    chat.messages.push(userMsg);
+    // Render just the new user message quickly
+    messagesEl.appendChild(createMessageNode('user', text));
+    messagesEl.scrollTop = messagesEl.scrollHeight;
     input.value = '';
 
-    const reply = await sendToModel(chat.messages.map(m => ({role:m.role, content:m.content})));
-    chat.messages.push({ role:'assistant', content:reply, meta:'StrataMind AI' });
+    // Ask model
+    const reply = await sendToModel(chat.messages.map(m => ({ role: m.role, content: m.content })));
 
-    // title update (first user message)
-    if (chat.title === 'New chat' && chat.messages[0]?.role === 'user'){
+    // Add assistant placeholder first (so we can type into it)
+    const assistantMsg = { role: 'assistant', content: reply, meta: 'StrataMind AI' };
+    chat.messages.push(assistantMsg);
+
+    // Title update (first user message)
+    if (chat.title === 'New chat' && chat.messages[0]?.role === 'user') {
       chat.title = chat.messages[0].content.slice(0, 40);
       renderHistory();
     }
-    renderMessages();
+
+    // Create assistant node and animate typing
+    const node = createMessageNode('assistant', '', 'StrataMind AI'); // empty content to start typing
+    messagesEl.appendChild(node);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    await typeAssistantMessage(node, reply);
   });
 
   newChatBtn.addEventListener('click', () => newChat());
