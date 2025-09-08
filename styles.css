@@ -140,3 +140,18 @@ body{
 .modal footer{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px }
 .modal textarea{ width:100%; min-height:120px; border-radius:10px; border:1px solid var(--stroke); background: rgba(255,255,255,.04); color:#fff; padding:10px }
 .modal input{ width:100%; border-radius:10px; border:1px solid var(--stroke); background: rgba(255,255,255,.04); color:#fff; padding:10px; margin-bottom:8px }
+/* tidy markdown in chat bubbles */
+.msg .bubble h1, .msg .bubble h2, .msg .bubble h3{
+  margin: 6px 0 6px;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.msg .bubble p{ margin: 6px 0; }
+.msg .bubble ul, .msg .bubble ol{ margin: 6px 0 6px 18px; }
+.msg .bubble li{ margin: 2px 0; }
+.msg .bubble code{
+  padding: 0 4px; border-radius: 4px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--stroke);
+}
