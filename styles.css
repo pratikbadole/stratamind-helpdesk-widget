@@ -199,4 +199,16 @@ body{
   padding-left: 18px;
 }
 .msg .bubble li { margin: 2px 0; }
+/* Only the chat pane scrolls */
+html, body { height: 100%; overflow: hidden; }
+.app { height: 100vh; }
+.main, .chatwrap { min-height: 0; }
+.messages { overflow: auto; }
 
+/* Sidebar has its own scroll if long */
+.sidebar { overflow: auto; border-right: 1px solid var(--stroke); }
+
+/* Make markdown look crisp inside bubbles */
+.msg .bubble strong { font-weight: 700; }
+.msg .bubble ul, .msg .bubble ol { margin: 8px 0 10px 20px; padding-left: 18px; }
+.msg .bubble li { margin: 2px 0; }
