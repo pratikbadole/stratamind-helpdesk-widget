@@ -108,3 +108,35 @@ body{
   background: rgba(255,255,255,.08);
   padding: 2px 6px; border-radius: 6px;
 }
+/* Modal shell */
+.modal {
+  position: fixed; inset: 0;
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 50;
+}
+.modal.show { display: flex; }
+
+/* dark blur behind */
+.modal::before{
+  content:"";
+  position:absolute; inset:0;
+  backdrop-filter: blur(10px) saturate(120%);
+  background: rgba(0,0,0,0.45); /* stronger backdrop */
+}
+
+/* dialog card */
+.modal-card{
+  position: relative;
+  width: min(720px, 92vw);
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(18,18,26,0.92);    /* less transparent */
+  box-shadow: 0 10px 40px rgba(0,0,0,.45);
+  padding: 16px;
+  color: var(--text);
+}
+.modal header{ font-weight:700; margin-bottom:10px }
+.modal footer{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px }
+.modal textarea{ width:100%; min-height:120px; border-radius:10px; border:1px solid var(--stroke); background: rgba(255,255,255,.04); color:#fff; padding:10px }
+.modal input{ width:100%; border-radius:10px; border:1px solid var(--stroke); background: rgba(255,255,255,.04); color:#fff; padding:10px; margin-bottom:8px }
