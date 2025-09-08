@@ -1,43 +1,43 @@
 // netlify/functions/create-ticket.js
-import fetch from "node-fetch";
+import { createClient } from '@supabase/supabase-js';
 
-export const handler = async (event) => {
+export async function handler(event) {
   try {
     if (event.httpMethod !== 'POST') {
       return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
-    const { subject, description, email, chat } = JSON.parse(event.body || '{}');
-    if (!subject || !description) {
-      return { statusCode: 400, body: 'subject and description are required' };
-    }
-
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE;
+    const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE; // server key ONLY
 
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/tickets`, {
-      method: 'POST',
-      headers: {
-        'apikey': SERVICE_KEY,
-        'Authorization': `Bearer ${SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify([{ subject, description, email: email || null, chat, status: 'open' }])
-    });
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
-    if (!r.ok) {
-      const t = await r.text();
-      return { statusCode: 500, body: `Insert failed: ${t}` };
+    const { subject, description, email, chat } = JSON.parse(event.body || '{}');
+
+    if (!subject || !description) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'subject and description are required' }) };
     }
 
-    const [row] = await r.json();
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ok: true, id: row.id })
-    };
+    const safeChat = Array.isArray(chat)
+      ? chat.filter(m => m && m.role && m.content).map(m => ({ role: m.role, content: m.content }))
+      : null;
+
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert({
+        subject,
+        description,
+        email: email || null,
+        status: 'open',
+        chat: safeChat   // 👈 stored in JSONB column
+      })
+      .select('id')
+      .single();
+
+    if (error) throw error;
+
+    return { statusCode: 200, body: JSON.stringify({ ok: true, id: data.id }) };
   } catch (e) {
-    return { statusCode: 500, body: e.message };
+    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
   }
-};
+}
