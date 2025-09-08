@@ -29,78 +29,91 @@
   //  - headings (#..###) clamped to h3
   //  - lists (-, 1.) with special handling to keep <ol> numbered across blank lines
   //  - converts leading "• " to "- "
-  function mdToHtml(src){
-    let s = (src || '').replace(/\r\n?/g, '\n');
+  // tiny markdown -> HTML (headings, **bold**, *em*, `code`, bullets, numbers)
+// Special: lines like "1. Title:" become <h3 class="step"><span>1.</span> Title</h3>
+function mdToHtml(src){
+  let s = (src || '').replace(/\r\n?/g, '\n');
 
-    // normalize bullets
-    s = s.replace(/^\s*•\s+/gm, '- ');
+  // escape first
+  s = s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-    // escape first (we’ll add inline tags next)
-    s = esc(s);
+  // normalize "• " bullets to "- "
+  s = s.replace(/^\s*•\s+/gm, '- ');
 
-    // inline styles
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-         .replace(/\*(.+?)\*/g, '<em>$1</em>')
-         .replace(/`([^`]+)`/g, '<code>$1</code>');
+  // inline styles
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+       .replace(/\*(.+?)\*/g, '<em>$1</em>')
+       .replace(/`([^`]+)`/g, '<code>$1</code>');
 
-    const lines = s.split('\n');
-    let out = [];
-    let inUL = false, inOL = false;
+  const lines = s.split('\n');
+  let out = [];
+  let inUL = false, inOL = false;
 
-    const closeLists = () => {
-      if (inUL) { out.push('</ul>'); inUL = false; }
-      if (inOL) { out.push('</ol>'); inOL = false; }
-    };
+  const closeLists = () => {
+    if (inUL) { out.push('</ul>'); inUL = false; }
+    if (inOL) { out.push('</ol>'); inOL = false; }
+  };
 
-    for (let i = 0; i < lines.length; i++){
-      const line = lines[i];
+  for (let i = 0; i < lines.length; i++){
+    const line = lines[i];
 
-      // Headings
-      const h = line.match(/^(#{1,6})\s+(.*)$/);
-      if (h){
-        closeLists();
-        const level = Math.min(h[1].length, 3);
-        out.push(`<h${level}>${h[2]}</h${level}>`);
-        continue;
-      }
-
-      // Unordered list
-      if (/^\s*-\s+/.test(line)){
-        if (!inUL){ closeLists(); out.push('<ul>'); inUL = true; }
-        out.push('<li>' + line.replace(/^\s*-\s+/, '') + '</li>');
-        continue;
-      }
-
-      // Ordered list (keep <ol> open across single blank line gaps)
-      const num = line.match(/^\s*\d+\.\s+(.*)$/);
-      if (num){
-        if (!inOL){ closeLists(); out.push('<ol>'); inOL = true; }
-        out.push('<li>' + num[1] + '</li>');
-
-        // absorb a single blank line if the next non-blank is another "N. "
-        while (i + 1 < lines.length &&
-               lines[i + 1].trim() === '' &&
-               /^\s*\d+\.\s+/.test(lines[i + 2] || '')) {
-          i++; // skip the blank line
-        }
-        continue;
-      }
-
-      // Blank line
-      if (line.trim() === ''){
-        // when inside a list, keep the list open but add a light spacer
-        out.push('<br>');
-        continue;
-      }
-
-      // Normal paragraph
+    // Headings (#, ##, ###) — clamp to h3 for bubble scale
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    if (h){
       closeLists();
-      out.push('<p>' + line + '</p>');
+      const level = Math.min(h[1].length, 3);
+      out.push(`<h${level}>${h[2]}</h${level}>`);
+      continue;
     }
 
+    // "Step title" pattern:  `1. Something:`  (numbered section header)
+    const step = line.match(/^\s*(\d+)\.\s+(.+?):\s*$/);
+    if (step){
+      closeLists();
+      out.push(
+        `<h3 class="step"><span class="step-num">${step[1]}.</span> ${step[2]}</h3>`
+      );
+      continue;
+    }
+
+    // Unordered list
+    if (/^\s*-\s+/.test(line)){
+      if (!inUL){ closeLists(); out.push('<ul>'); inUL = true; }
+      out.push('<li>' + line.replace(/^\s*-\s+/, '') + '</li>');
+      continue;
+    }
+
+    // Ordered list (true numbered list items like "1. Do X")
+    const num = line.match(/^\s*(\d+)\.\s+(.*)$/);
+    if (num){
+      // guard: if it looked like a "step title" we already handled it above
+      if (!inOL){ closeLists(); out.push('<ol>'); inOL = true; }
+      out.push('<li>' + num[2] + '</li>');
+
+      // absorb a single blank line if the next non-blank is another number
+      while (i + 2 < lines.length &&
+             lines[i + 1].trim() === '' &&
+             /^\s*\d+\.\s+/.test(lines[i + 2])) {
+        i++; // skip the blank line
+      }
+      continue;
+    }
+
+    // Blank line (don’t spam <br> inside lists)
+    if (line.trim() === ''){
+      closeLists();
+      out.push('<br>');
+      continue;
+    }
+
+    // Normal paragraph
     closeLists();
-    return out.join('\n').replace(/^(<br>\n?)+/, '');
+    out.push('<p>' + line + '</p>');
   }
+
+  closeLists();
+  return out.join('\n').replace(/^(<br>\n?)+/, '');
+}
 
   // HTML-aware typewriter (types text nodes inside tags; doesn’t break markup)
   async function typeInto(el, html, delay = TYPE_SPEED){
