@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Tickets — StrataMind</title>
+  <link rel="stylesheet" href="./styles.css"/>
+  <style>
+    .tickets { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .ticket { border:1px solid var(--stroke); border-radius:12px; padding:12px 14px; background:rgba(255,255,255,.03); margin-bottom:10px; }
+    .ticket h4 { margin:0 0 6px 0; font-size:15px; color:#fff }
+    .ticket small { color:var(--text-dim) }
+  </style>
+</head>
+<body>
+  <div class="tickets">
+    <h2 style="color:#fff; margin:8px 0 16px">Tickets</h2>
+    <div id="list"></div>
+    <a class="pill pill--secondary" href="./index.html">← Back to Helpdesk</a>
+  </div>
+  <script>
+    (async () => {
+      const list = document.getElementById('list');
+      list.innerHTML = '<div class="ticket"><small>Loading…</small></div>';
+      try{
+        const r = await fetch('/.netlify/functions/list-tickets');
+        const rows = await r.json();
+        list.innerHTML = rows.map(t => `
+          <div class="ticket">
+            <h4>${escapeHTML(t.subject)}</h4>
+            <small>#${t.id} • ${new Date(t.created_at).toLocaleString()} • ${t.status}${t.email ? ' • ' + escapeHTML(t.email) : ''}</small>
+          </div>
+        `).join('') || '<small>No tickets yet.</small>';
+      }catch(e){
+        list.innerHTML = `<div class="ticket"><small>Error: ${e.message}</small></div>`;
+      }
+
+      function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+    })();
+  </script>
+</body>
+</html>
