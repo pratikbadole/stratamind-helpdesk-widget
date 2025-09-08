@@ -13,7 +13,7 @@
 
   // ── toggles ──────────────────────────────────────────────────────────────
   const TYPEWRITER = true;      // set false to disable typing animation
-  const TYPE_SPEED = 6;         // ms per character when typewriter is on
+  const TYPE_SPEED = 4;         // ms per character when typewriter is on
 
   let chats = [];
   let currentId = null;
