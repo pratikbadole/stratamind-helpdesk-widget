@@ -240,7 +240,6 @@ function shouldOfferTicket(chat){
   // OR if they've had 2+ assistant replies and they acknowledge but don't confirm success
   return (saidNotFixed && assistantReplies >= 1) ||
          (softAck && assistantReplies >= 2);
-}
   }
 
   function insertTicketCTA(){
