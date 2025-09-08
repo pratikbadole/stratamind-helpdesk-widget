@@ -11,24 +11,37 @@
   const ticketsBtn = $('#ticketsBtn');
   const ticketBtnRowId = 'ticket-cta-row';
 
+  // ── toggles ──────────────────────────────────────────────────────────────
+  const TYPEWRITER = true;      // set false to disable typing animation
+  const TYPE_SPEED = 6;         // ms per character when typewriter is on
+
   let chats = [];
   let currentId = null;
 
   // ───────────────────────────────── utils ─────────────────────────────────
-  // tiny markdown -> HTML (supports **bold**, *em*, `code`, lists, headings; converts "• " to "- ")
+  // HTML escaper
+  const esc = (s) => (s || '').replace(/[&<>"']/g, m =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
+  );
+
+  // Small, safe Markdown → HTML:
+  //  - **bold**, *em*, `code`
+  //  - headings (#..###) clamped to h3
+  //  - lists (-, 1.) with special handling to keep <ol> numbered across blank lines
+  //  - converts leading "• " to "- "
   function mdToHtml(src){
     let s = (src || '').replace(/\r\n?/g, '\n');
 
-    // escape first
-    s = s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-
-    // normalize "• " bullets
+    // normalize bullets
     s = s.replace(/^\s*•\s+/gm, '- ');
 
-    // inline styles (bold/em/code)
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // escape first (we’ll add inline tags next)
+    s = esc(s);
+
+    // inline styles
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+         .replace(/\*(.+?)\*/g, '<em>$1</em>')
+         .replace(/`([^`]+)`/g, '<code>$1</code>');
 
     const lines = s.split('\n');
     let out = [];
@@ -39,8 +52,10 @@
       if (inOL) { out.push('</ol>'); inOL = false; }
     };
 
-    for (let line of lines){
-      // headings (#, ##, ### — clamp to h3 for bubble scale)
+    for (let i = 0; i < lines.length; i++){
+      const line = lines[i];
+
+      // Headings
       const h = line.match(/^(#{1,6})\s+(.*)$/);
       if (h){
         closeLists();
@@ -49,27 +64,70 @@
         continue;
       }
 
-      if (/^\s*-\s+/.test(line)){                 // unordered list
+      // Unordered list
+      if (/^\s*-\s+/.test(line)){
         if (!inUL){ closeLists(); out.push('<ul>'); inUL = true; }
         out.push('<li>' + line.replace(/^\s*-\s+/, '') + '</li>');
         continue;
       }
-      if (/^\s*\d+\.\s+/.test(line)){             // ordered list
+
+      // Ordered list (keep <ol> open across single blank line gaps)
+      const num = line.match(/^\s*\d+\.\s+(.*)$/);
+      if (num){
         if (!inOL){ closeLists(); out.push('<ol>'); inOL = true; }
-        out.push('<li>' + line.replace(/^\s*\d+\.\s+/, '') + '</li>');
+        out.push('<li>' + num[1] + '</li>');
+
+        // absorb a single blank line if the next non-blank is another "N. "
+        while (i + 1 < lines.length &&
+               lines[i + 1].trim() === '' &&
+               /^\s*\d+\.\s+/.test(lines[i + 2] || '')) {
+          i++; // skip the blank line
+        }
         continue;
       }
 
+      // Blank line
       if (line.trim() === ''){
-        closeLists();
+        // when inside a list, keep the list open but add a light spacer
         out.push('<br>');
-      } else {
-        closeLists();
-        out.push('<p>' + line + '</p>');
+        continue;
       }
+
+      // Normal paragraph
+      closeLists();
+      out.push('<p>' + line + '</p>');
     }
+
     closeLists();
     return out.join('\n').replace(/^(<br>\n?)+/, '');
+  }
+
+  // HTML-aware typewriter (types text nodes inside tags; doesn’t break markup)
+  async function typeInto(el, html, delay = TYPE_SPEED){
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    el.innerHTML = '';
+
+    const walk = async (node, mount) => {
+      if (node.nodeType === 3){ // Text
+        const t = node.nodeValue || '';
+        for (let i = 0; i < t.length; i++){
+          mount.appendChild(document.createTextNode(t[i]));
+          await new Promise(r => setTimeout(r, delay));
+        }
+        return;
+      }
+      // Element
+      const clone = node.cloneNode(false);
+      mount.appendChild(clone);
+      for (const child of Array.from(node.childNodes)){
+        await walk(child, clone);
+      }
+    };
+
+    for (const child of Array.from(temp.childNodes)){
+      await walk(child, el);
+    }
   }
 
   // Enter to send, Shift+Enter for newline
@@ -234,7 +292,7 @@ Reply **not fixed** if it’s still unstable.`;
     renderMessages();
     input.value = '';
 
-    // simple placeholder while waiting
+    // placeholder bubble while waiting
     const bubble = appendMsg({ role: 'assistant', meta: 'StrataMind AI' });
     bubble.innerHTML = '<em>Thinking…</em>';
 
@@ -248,8 +306,13 @@ Reply **not fixed** if it’s still unstable.`;
       renderHistory();
     }
 
-    // final render in the same bubble
-    bubble.innerHTML = mdToHtml(reply);
+    // final render in the same bubble (typewriter optional)
+    if (TYPEWRITER){
+      bubble.innerHTML = '';
+      await typeInto(bubble, mdToHtml(reply), TYPE_SPEED);
+    } else {
+      bubble.innerHTML = mdToHtml(reply);
+    }
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
     // gate ticket CTA
@@ -267,7 +330,7 @@ Reply **not fixed** if it’s still unstable.`;
     $('#ticketEmail').focus();
     const chat = currentChat();
     const lastA = [...chat.messages].reverse().find(m => m.role === 'assistant')?.content || '';
-    $('#ticketSummary').value = lastA.slice(0, 800);
+    $('#ticketSummary').value = (lastA || '').slice(0, 800);
   }
   function closeTicketModal(){ $('#ticketModal').classList.remove('show'); }
 
