@@ -44,5 +44,16 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="./app.js" defer></script>
+  <div class="modal" id="ticketModal" aria-hidden="true">
+  <div class="modal-card">
+    <header>Create Ticket</header>
+    <input id="ticketEmail" type="email" placeholder="Email (optional)" />
+    <textarea id="ticketSummary" placeholder="Short description"></textarea>
+    <footer>
+      <button class="pill pill--secondary" id="ticketCancel">Cancel</button>
+      <button class="pill pill--primary" id="ticketCreate">Create Ticket</button>
+    </footer>
+  </div>
+</div>
 </body>
 </html>
