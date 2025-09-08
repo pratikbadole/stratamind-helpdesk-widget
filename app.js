@@ -104,7 +104,7 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // ---------- backend ----------
+  // ---------- backend (model) ----------
   async function sendToModel(messages){
     if (window.USE_MOCK) return mockReply(messages);
     try{
@@ -152,6 +152,30 @@ Say **not fixed** if you still see errors.`;
 Reply **not fixed** if it’s still unstable.`;
     }
     return `Tell me your issue (e.g., *Teams mic not working on Mac*), and I’ll walk you through fixes.`;
+  }
+
+  // ---------- backend (tickets) ----------
+  function serializeChatForTicket(chatMessages){
+    return (chatMessages || []).map(m => ({ role: m.role, content: m.content }));
+  }
+
+  async function createTicket({ subject, description, email, chatMessages }){
+    const payload = {
+      subject,
+      description,
+      email: email || '',
+      chat: serializeChatForTicket(chatMessages)
+    };
+
+    const r = await fetch('/.netlify/functions/create-ticket', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    const data = await r.json().catch(()=> ({}));
+    if (!r.ok || !data.ok) throw new Error(data.error || 'Ticket not created');
+    return data.id;
   }
 
   // ---------- ticket CTA gating ----------
@@ -227,30 +251,25 @@ Reply **not fixed** if it’s still unstable.`;
 
   $('#ticketCancel').onclick = closeTicketModal;
   $('#ticketCreate').onclick = async () => {
-    const chat = currentChat();
-    const email = $('#ticketEmail').value.trim();
-    const summary = $('#ticketSummary').value.trim();
-    const lastUser = [...chat.messages].reverse().find(m => m.role==='user')?.content || '';
-    const payload = {
-      subject: (chat.title || 'IT issue').slice(0, 120),
-      description: summary || lastUser || 'No description',
-      email: email || null,
-      priority: 'medium',
-      status: 'open',
-      created_at: new Date().toISOString()
-    };
-
     try{
-      const r = await fetch('/.netlify/functions/create-ticket', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      if (!r.ok) throw new Error('create failed');
-      const data = await r.json();
-      closeTicketModal();
+      const chat = currentChat();
+      const email = $('#ticketEmail').value.trim();
+      const summary = $('#ticketSummary').value.trim();
+      const lastUser = [...chat.messages].reverse().find(m => m.role==='user')?.content || '';
 
-      const conf = `Ticket **#${data.id}** created. Our team will follow up.\n\nSubject: **${payload.subject}**`;
+      const subject = (chat.title || 'IT issue').slice(0, 120);
+      const description = summary || lastUser || 'No description';
+
+      // use server function wrapper (stores JSONB chat)
+      const id = await createTicket({
+        subject,
+        description,
+        email,
+        chatMessages: chat?.messages || []
+      });
+
+      closeTicketModal();
+      const conf = `Ticket **#${id}** created. Our team will follow up.\n\nSubject: **${subject}**`;
       chat.messages.push({ role:'assistant', content: conf, meta:'StrataMind AI' });
       renderMessages();
     }catch(err){
