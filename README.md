@@ -1,0 +1,1 @@
+# StrataMind Helpdesk Widget
