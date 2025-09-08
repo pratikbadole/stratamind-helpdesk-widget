@@ -337,13 +337,3 @@ function shouldOfferTicket(chat){
   newChat();
   renderMessages();
 })();
-/* make markdown bold visibly bold */
-.msg .bubble strong { font-weight: 700; }
-/* clear visual split between history and chat */
-.sidebar { border-right: 1px solid var(--stroke); }
-.msg .bubble ul,
-.msg .bubble ol {
-  margin: 8px 0 10px 20px;
-  padding-left: 18px;
-}
-.msg .bubble li { margin: 2px 0; }
