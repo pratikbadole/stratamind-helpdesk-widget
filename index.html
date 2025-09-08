@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StrataMind — AI Helpdesk</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">StrataMind</div>
+      <button id="newChatBtn" class="btn btn--glass btn--full">+ New chat</button>
+      <div class="history" id="history"></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="title">AI Helpdesk</div>
+        <div class="actions">
+          <a id="kbBtn" class="pill pill--secondary" href="#" title="Knowledge Hub">Knowledge Hub</a>
+          <a id="ticketsBtn" class="pill pill--primary" href="#" title="Tickets">Tickets</a>
+        </div>
+      </header>
+
+      <section class="chatwrap">
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <form id="chatForm" class="composer">
+          <textarea id="input" rows="2" placeholder="Describe your issue (e.g., 'Set up VPN on Mac', 'Outlook not syncing')"></textarea>
+          <button class="pill pill--primary" type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Toggle this to test mock mode on purpose:
+    window.USE_MOCK = false;
+  </script>
+  <script src="./app.js" defer></script>
+</body>
+</html>
