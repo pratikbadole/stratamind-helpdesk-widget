@@ -1,3 +1,2 @@
 /*
-  Content-Security-Policy: frame-ancestors https://*.framer.app https://*.framer.website https://framer.com https://*.netlify.app 'self';
-  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors https://*.framer.app https://framer.app https://*.framer.com https://framer.com 'self';
