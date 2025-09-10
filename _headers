@@ -1,16 +1,3 @@
 /*
-  # TEMP: allow Framer to iframe this page from any of its domains
-  # You can tighten this later.
   X-Frame-Options: ALLOWALL
-  Content-Security-Policy: frame-ancestors
-    https://*.framer.com
-    https://framer.com
-    https://*.framer.app
-    https://framer.app
-    https://*.framer.website
-    https://framer.website
-    https://*.framerusercontent.com
-    https://framerusercontent.com
-    https://*.framerstatic.com
-    https://framerstatic.com
-    'self';
+  Content-Security-Policy: frame-ancestors 'self' https://framer.com https://*.framer.com https://framer.app https://*.framer.app https://framer.website https://*.framer.website https://framerusercontent.com https://*.framerusercontent.com;
