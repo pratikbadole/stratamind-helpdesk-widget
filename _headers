@@ -1,3 +1,2 @@
-/*
+/embed/*
   Content-Security-Policy: frame-ancestors https://*.framer.app https://framer.app https://*.framer.com https://framer.com https://*.framer.website https://framer.website https://*.framerusercontent.com https://framerusercontent.com 'self';
-  X-Frame-Options: ALLOW-FROM https://framer.com/
