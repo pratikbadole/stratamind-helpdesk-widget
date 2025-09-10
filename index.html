@@ -11,6 +11,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
+  <script>
+  // Enable compact UI when ?embed=1 is in the URL
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.get('embed') === '1') {
+      document.documentElement.classList.add('embed');
+    }
+  } catch {}
+</script>
   <div class="app">
     <aside class="sidebar">
       <div class="brand">StrataMind</div>
