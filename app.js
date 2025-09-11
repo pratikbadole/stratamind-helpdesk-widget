@@ -19,101 +19,90 @@
   let currentId = null;
 
   // ───────────────────────────────── utils ─────────────────────────────────
-  // HTML escaper
-  const esc = (s) => (s || '').replace(/[&<>"']/g, m =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
-  );
+  // tiny Markdown → HTML (headings, **bold**, *em*, `code`, bullets, numbers)
+  // Special: lines like "1. Title:" become a step heading
+  function mdToHtml(src){
+    let s = (src || '').replace(/\r\n?/g, '\n');
 
-  // Small, safe Markdown → HTML:
-  //  - **bold**, *em*, `code`
-  //  - headings (#..###) clamped to h3
-  //  - lists (-, 1.) with special handling to keep <ol> numbered across blank lines
-  //  - converts leading "• " to "- "
-  // tiny markdown -> HTML (headings, **bold**, *em*, `code`, bullets, numbers)
-// Special: lines like "1. Title:" become <h3 class="step"><span>1.</span> Title</h3>
-function mdToHtml(src){
-  let s = (src || '').replace(/\r\n?/g, '\n');
+    // escape first
+    s = s.replace(/[&<>"']/g, m => (
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
+    ));
 
-  // escape first
-  s = s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    // normalize "• " bullets to "- "
+    s = s.replace(/^\s*•\s+/gm, '- ');
 
-  // normalize "• " bullets to "- "
-  s = s.replace(/^\s*•\s+/gm, '- ');
+    // inline styles
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+         .replace(/\*(.+?)\*/g, '<em>$1</em>')
+         .replace(/`([^`]+)`/g, '<code>$1</code>');
 
-  // inline styles
-  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-       .replace(/\*(.+?)\*/g, '<em>$1</em>')
-       .replace(/`([^`]+)`/g, '<code>$1</code>');
+    const lines = s.split('\n');
+    let out = [];
+    let inUL = false, inOL = false;
 
-  const lines = s.split('\n');
-  let out = [];
-  let inUL = false, inOL = false;
+    const closeLists = () => {
+      if (inUL) { out.push('</ul>'); inUL = false; }
+      if (inOL) { out.push('</ol>'); inOL = false; }
+    };
 
-  const closeLists = () => {
-    if (inUL) { out.push('</ul>'); inUL = false; }
-    if (inOL) { out.push('</ol>'); inOL = false; }
-  };
+    for (let i = 0; i < lines.length; i++){
+      const line = lines[i];
 
-  for (let i = 0; i < lines.length; i++){
-    const line = lines[i];
-
-    // Headings (#, ##, ###) — clamp to h3 for bubble scale
-    const h = line.match(/^(#{1,6})\s+(.*)$/);
-    if (h){
-      closeLists();
-      const level = Math.min(h[1].length, 3);
-      out.push(`<h${level}>${h[2]}</h${level}>`);
-      continue;
-    }
-
-    // "Step title" pattern:  `1. Something:`  (numbered section header)
-    const step = line.match(/^\s*(\d+)\.\s+(.+?):\s*$/);
-    if (step){
-      closeLists();
-      out.push(
-        `<h3 class="step"><span class="step-num">${step[1]}.</span> ${step[2]}</h3>`
-      );
-      continue;
-    }
-
-    // Unordered list
-    if (/^\s*-\s+/.test(line)){
-      if (!inUL){ closeLists(); out.push('<ul>'); inUL = true; }
-      out.push('<li>' + line.replace(/^\s*-\s+/, '') + '</li>');
-      continue;
-    }
-
-    // Ordered list (true numbered list items like "1. Do X")
-    const num = line.match(/^\s*(\d+)\.\s+(.*)$/);
-    if (num){
-      // guard: if it looked like a "step title" we already handled it above
-      if (!inOL){ closeLists(); out.push('<ol>'); inOL = true; }
-      out.push('<li>' + num[2] + '</li>');
-
-      // absorb a single blank line if the next non-blank is another number
-      while (i + 2 < lines.length &&
-             lines[i + 1].trim() === '' &&
-             /^\s*\d+\.\s+/.test(lines[i + 2])) {
-        i++; // skip the blank line
+      // Headings (#, ##, ###) — clamp to h3 for bubble scale
+      const h = line.match(/^(#{1,6})\s+(.*)$/);
+      if (h){
+        closeLists();
+        const level = Math.min(h[1].length, 3);
+        out.push(`<h${level}>${h[2]}</h${level}>`);
+        continue;
       }
-      continue;
-    }
 
-    // Blank line (don’t spam <br> inside lists)
-    if (line.trim() === ''){
+      // "Step title" pattern:  `1. Something:`  (numbered section header)
+      const step = line.match(/^\s*(\d+)\.\s+(.+?):\s*$/);
+      if (step){
+        closeLists();
+        out.push(`<h3 class="step"><span class="step-num">${step[1]}.</span> ${step[2]}</h3>`);
+        continue;
+      }
+
+      // Unordered list
+      if (/^\s*-\s+/.test(line)){
+        if (!inUL){ closeLists(); out.push('<ul>'); inUL = true; }
+        out.push('<li>' + line.replace(/^\s*-\s+/, '') + '</li>');
+        continue;
+      }
+
+      // Ordered list (true numbered list items like "1. Do X")
+      const num = line.match(/^\s*(\d+)\.\s+(.*)$/);
+      if (num){
+        if (!inOL){ closeLists(); out.push('<ol>'); inOL = true; }
+        out.push('<li>' + num[2] + '</li>');
+
+        // absorb a single blank line if the next non-blank is another number
+        while (i + 2 < lines.length &&
+               lines[i + 1].trim() === '' &&
+               /^\s*\d+\.\s+/.test(lines[i + 2])) {
+          i++; // skip the blank line
+        }
+        continue;
+      }
+
+      // Blank line
+      if (line.trim() === ''){
+        closeLists();
+        out.push('<br>');
+        continue;
+      }
+
+      // Normal paragraph
       closeLists();
-      out.push('<br>');
-      continue;
+      out.push('<p>' + line + '</p>');
     }
 
-    // Normal paragraph
     closeLists();
-    out.push('<p>' + line + '</p>');
+    return out.join('\n').replace(/^(<br>\n?)+/, '');
   }
-
-  closeLists();
-  return out.join('\n').replace(/^(<br>\n?)+/, '');
-}
 
   // HTML-aware typewriter (types text nodes inside tags; doesn’t break markup)
   async function typeInto(el, html, delay = TYPE_SPEED){
@@ -256,12 +245,25 @@ Reply **not fixed** if it’s still unstable.`;
   }
 
   async function createTicket({ subject, description, email, chatMessages }){
-    const payload = { subject, description, email: email || '', chat: serializeChatForTicket(chatMessages) };
+    const payload = {
+      subject,
+      description,
+      email: email || '',
+      chat: serializeChatForTicket(chatMessages)
+    };
+
+    // ✅ Add Authorization header if a Supabase token is present
+    const headers = { 'Content-Type': 'application/json' };
+    if (window.SUPABASE_TOKEN) {
+      headers.Authorization = `Bearer ${window.SUPABASE_TOKEN}`;
+    }
+
     const r = await fetch('/.netlify/functions/create-ticket', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json' },
+      headers,
       body: JSON.stringify(payload)
     });
+
     const data = await r.json().catch(() => ({}));
     if (!r.ok || !data.ok) throw new Error(data.error || 'Ticket not created');
     return data.id;
