@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Sign in — StrataMind</title>
+  <link rel="stylesheet" href="./styles.css"/>
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    const supabase = createClient(
+      import.meta.env?.SUPABASE_URL || window.SUPABASE_URL,
+      import.meta.env?.SUPABASE_ANON_KEY || window.SUPABASE_ANON_KEY
+    );
+
+    // If already signed in, go to chat
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) location.replace('./index.html');
+    });
+
+    window.doLogin = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      if (!email) return;
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: location.origin + '/index.html'
+        }
+      });
+      const msg = document.getElementById('msg');
+      msg.textContent = error ? ('Error: ' + error.message) : 'Check your email for the sign-in link.';
+      msg.style.color = error ? '#ff6b6b' : '#cfe6ff';
+    }
+  </script>
+</head>
+<body>
+  <div class="tickets" style="max-width:420px">
+    <h2 style="color:#fff">Sign in</h2>
+    <p style="color:var(--text-dim)">Use your email and we’ll send you a one-time link.</p>
+    <form onsubmit="doLogin(event)">
+      <input id="email" type="email" placeholder="you@company.com" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--stroke);background:rgba(255,255,255,.04);color:#fff"/>
+      <div style="height:10px"></div>
+      <button class="pill pill--primary" type="submit">Send magic link</button>
+      <div id="msg" style="margin-top:10px; color:var(--text-dim)"></div>
+    </form>
+  </div>
+
+  <!-- expose env for ESM import -->
+  <script>
+    window.SUPABASE_URL = '<?= SUPABASE_URL_PLACEHOLDER ?>'.replace('<?= ','').replace(' ?>','');
+    window.SUPABASE_ANON_KEY = '<?= SUPABASE_ANON_KEY_PLACEHOLDER ?>'.replace('<?= ','').replace(' ?>','');
+  </script>
+</body>
+</html>
