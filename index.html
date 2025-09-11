@@ -11,6 +11,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
+  <script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+  const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) location.replace('./auth.html');
+  // save email for tickets filter convenience
+  if (session?.user?.email) localStorage.setItem('email', session.user.email);
+  // expose token for functions if you want to add it to fetch later
+  window.SUPABASE_TOKEN = session?.access_token || '';
+</script>
   <script>
   // Enable compact UI when ?embed=1 is in the URL
   try {
