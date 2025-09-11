@@ -6,36 +6,241 @@
   <title>Tickets — StrataMind</title>
   <link rel="stylesheet" href="./styles.css"/>
   <style>
+    :root{
+      --chip-open: #a9a9b3;         /* gray */
+      --chip-inprog: #5aa7ff;       /* blue */
+      --chip-resolved: #47d18c;     /* green */
+      --chip-closed: #7d7d86;       /* dim gray */
+      --chip-low: #9aa0a6;
+      --chip-medium: #c8cfd8;
+      --chip-high: #ffb25e;         /* orange */
+      --chip-urgent: #ff6b6b;       /* red */
+    }
+
     .tickets { max-width: 980px; margin: 24px auto; padding: 0 16px; }
-    .ticket { border:1px solid var(--stroke); border-radius:12px; padding:12px 14px; background:rgba(255,255,255,.03); margin-bottom:10px; }
+    .tickets h2 { color:#fff; margin:8px 0 16px }
+
+    .filters{
+      display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;
+      align-items:center;
+    }
+    .filters .hint{ color:var(--text-dim); font-size:13px }
+
+    .ticket {
+      border:1px solid var(--stroke); border-radius:12px; padding:12px 14px;
+      background:rgba(255,255,255,.03); margin-bottom:10px; cursor:pointer;
+      transition: outline-color .15s ease, transform .05s ease;
+      outline:1px solid transparent;
+    }
+    .ticket:hover{ outline-color: rgba(255,255,255,.12) }
+    .ticket:active{ transform: translateY(1px) }
     .ticket h4 { margin:0 0 6px 0; font-size:15px; color:#fff }
-    .ticket small { color:var(--text-dim) }
+    .meta { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .meta small { color:var(--text-dim) }
+
+    .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      border:1px solid var(--stroke); border-radius:999px; padding:2px 8px;
+      font-size:12px; line-height:1; color:#fff; background:rgba(255,255,255,.06);
+    }
+    .chip.status-open{ background:rgba(255,255,255,.05); color:var(--text-dim) }
+    .chip.status-in_progress{ background:rgba(90,167,255,.12); color:#cfe6ff; border-color:rgba(90,167,255,.35) }
+    .chip.status-resolved{ background:rgba(71,209,140,.12); color:#c9f2df; border-color:rgba(71,209,140,.35) }
+    .chip.status-closed{ background:rgba(125,125,134,.12); color:#ddd; border-color:rgba(125,125,134,.35) }
+
+    .chip.priority-low{ background:rgba(154,160,166,.12); color:#dfe3e7; border-color:rgba(154,160,166,.35) }
+    .chip.priority-medium{ background:rgba(200,207,216,.10); color:#e8ecf2 }
+    .chip.priority-high{ background:rgba(255,178,94,.12); color:#ffe2c3; border-color:rgba(255,178,94,.35) }
+    .chip.priority-urgent{ background:rgba(255,107,107,.12); color:#ffd3d3; border-color:rgba(255,107,107,.35) }
+
+    /* Drawer */
+    .drawer-backdrop{
+      position:fixed; inset:0; display:none; z-index:60;
+      background: rgba(0,0,0,.45); backdrop-filter: blur(4px);
+    }
+    .drawer-backdrop.show{ display:block; }
+    .drawer{
+      position:fixed; right:0; top:0; height:100%; width:min(560px, 92vw);
+      background:rgba(18,18,26,0.96); border-left:1px solid var(--stroke);
+      transform: translateX(100%); transition: transform .25s ease;
+      z-index:61; display:flex; flex-direction:column;
+    }
+    .drawer.show{ transform: translateX(0); }
+    .drawer header{
+      padding:14px 16px; border-bottom:1px solid var(--stroke);
+      display:flex; justify-content:space-between; align-items:center;
+      color:#fff; gap:10px;
+    }
+    .drawer header h3{ margin:0; font-size:16px; line-height:1.2 }
+    .drawer .drawer-body{ padding:14px 16px; overflow:auto; color:#e7e7ea }
+    .drawer .row{ margin-bottom:12px }
+    .drawer .label{ color:var(--text-dim); font-size:12px; margin-bottom:4px }
+    .drawer .desc{
+      white-space:pre-wrap; border:1px solid var(--stroke);
+      background:rgba(255,255,255,.03); border-radius:10px; padding:10px;
+    }
+    .drawer .thread .msg{
+      margin-bottom:10px; border:1px solid var(--stroke);
+      border-radius:10px; padding:10px; background:rgba(255,255,255,.03);
+    }
+    .drawer .close{
+      border:1px solid var(--stroke); background:rgba(255,255,255,.06);
+      color:#fff; padding:8px 10px; border-radius:10px; cursor:pointer;
+    }
+    .pill-link{ display:inline-block; margin-top:10px; }
   </style>
 </head>
 <body>
   <div class="tickets">
-    <h2 style="color:#fff; margin:8px 0 16px">Tickets</h2>
+    <h2>Tickets</h2>
+
+    <div class="filters">
+      <span class="hint" id="who"></span>
+      <a class="pill pill--secondary pill-link" href="./index.html">← Back to Helpdesk</a>
+    </div>
+
     <div id="list"></div>
-    <a class="pill pill--secondary" href="./index.html">← Back to Helpdesk</a>
   </div>
+
+  <!-- Drawer -->
+  <div id="drawerBackdrop" class="drawer-backdrop"></div>
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <header>
+      <h3 id="dSubject">Ticket</h3>
+      <button class="close" id="dClose">Close</button>
+    </header>
+    <div class="drawer-body">
+      <div class="row">
+        <div class="label">Meta</div>
+        <div id="dMeta" class="meta"></div>
+      </div>
+
+      <div class="row">
+        <div class="label">Description</div>
+        <div id="dDesc" class="desc"></div>
+      </div>
+
+      <div class="row" id="dThreadWrap" style="display:none">
+        <div class="label">Conversation</div>
+        <div id="dThread" class="thread"></div>
+      </div>
+    </div>
+  </aside>
+
   <script>
     (async () => {
-      const list = document.getElementById('list');
-      list.innerHTML = '<div class="ticket"><small>Loading…</small></div>';
+      const listEl   = document.getElementById('list');
+      const whoEl    = document.getElementById('who');
+
+      const drawer   = document.getElementById('drawer');
+      const dBackdrop= document.getElementById('drawerBackdrop');
+      const dClose   = document.getElementById('dClose');
+      const dSubject = document.getElementById('dSubject');
+      const dMeta    = document.getElementById('dMeta');
+      const dDesc    = document.getElementById('dDesc');
+      const dThreadW = document.getElementById('dThreadWrap');
+      const dThread  = document.getElementById('dThread');
+
+      const email = (localStorage.getItem('email') || '').trim();
+      whoEl.textContent = email ? `Showing tickets for ${email}` : 'Showing all tickets (no email set)';
+
+      listEl.innerHTML = '<div class="ticket"><small>Loading…</small></div>';
       try{
-        const r = await fetch('/.netlify/functions/list-tickets');
-        const rows = await r.json();
-        list.innerHTML = rows.map(t => `
-          <div class="ticket">
-            <h4>${escapeHTML(t.subject)}</h4>
-            <small>#${t.id} • ${new Date(t.created_at).toLocaleString()} • ${t.status}${t.email ? ' • ' + escapeHTML(t.email) : ''}</small>
-          </div>
-        `).join('') || '<small>No tickets yet.</small>';
+        const url = new URL('/.netlify/functions/list-tickets', location.origin);
+        if (email) url.searchParams.set('email', email);
+        const r = await fetch(url.toString());
+        const data = await r.json();
+
+        // normalize shape: some implementations return {ok,tickets}, others [] directly
+        const tickets = Array.isArray(data) ? data : (data.tickets || []);
+
+        if (!tickets.length){
+          listEl.innerHTML = '<small style="color:var(--text-dim)">No tickets yet.</small>';
+          return;
+        }
+
+        listEl.innerHTML = tickets.map(t => renderRow(t)).join('');
+        // attach click handlers for drawer
+        Array.from(listEl.querySelectorAll('[data-id]')).forEach(el => {
+          el.addEventListener('click', () => {
+            const id = el.getAttribute('data-id');
+            const t  = tickets.find(x => x.id === id);
+            if (t) openDrawer(t);
+          });
+        });
+
       }catch(e){
-        list.innerHTML = `<div class="ticket"><small>Error: ${e.message}</small></div>`;
+        listEl.innerHTML = `<div class="ticket"><small>Error: ${escapeHTML(e.message)}</small></div>`;
       }
 
-      function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+      function renderRow(t){
+        const statusClass = `status-${(t.status || 'open').replace(/\s+/g,'_')}`;
+        const prioClass   = `priority-${(t.priority || 'medium').toLowerCase()}`;
+        const when = t.created_at ? new Date(t.created_at).toLocaleString() : '';
+        return `
+          <div class="ticket" data-id="${escapeAttr(t.id)}">
+            <h4>${escapeHTML(t.subject || 'Untitled')}</h4>
+            <div class="meta">
+              <span class="chip ${statusClass}">${escapeHTML(t.status || 'open')}</span>
+              <span class="chip ${prioClass}">${escapeHTML(t.priority || 'medium')}</span>
+              <small>#${escapeHTML(t.id || '')}</small>
+              ${when ? `<small>${escapeHTML(when)}</small>` : ''}
+              ${t.email ? `<small>${escapeHTML(t.email)}</small>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      function openDrawer(t){
+        dSubject.textContent = t.subject || 'Ticket';
+        const statusClass = `status-${(t.status || 'open').replace(/\s+/g,'_')}`;
+        const prioClass   = `priority-${(t.priority || 'medium').toLowerCase()}`;
+        const when = t.created_at ? new Date(t.created_at).toLocaleString() : '';
+        dMeta.innerHTML = `
+          <span class="chip ${statusClass}">${escapeHTML(t.status || 'open')}</span>
+          <span class="chip ${prioClass}">${escapeHTML(t.priority || 'medium')}</span>
+          ${t.email ? `<span class="chip">${escapeHTML(t.email)}</span>` : ''}
+          ${when ? `<span class="chip">${escapeHTML(when)}</span>` : ''}
+          <span class="chip">#${escapeHTML(t.id || '')}</span>
+        `;
+
+        dDesc.textContent = t.description || '';
+
+        // chat transcript (if saved)
+        const chat = Array.isArray(t.chat) ? t.chat : [];
+        if (chat.length){
+          dThreadW.style.display = '';
+          dThread.innerHTML = chat.map(m => `
+            <div class="msg">
+              <div style="font-size:12px; color:var(--text-dim); margin-bottom:4px">${escapeHTML(m.role || '')}</div>
+              <div style="white-space:pre-wrap">${escapeHTML(m.content || '')}</div>
+            </div>
+          `).join('');
+        } else {
+          dThreadW.style.display = 'none';
+          dThread.innerHTML = '';
+        }
+
+        dBackdrop.classList.add('show');
+        drawer.classList.add('show');
+        drawer.setAttribute('aria-hidden','false');
+      }
+
+      function closeDrawer(){
+        drawer.classList.remove('show');
+        dBackdrop.classList.remove('show');
+        drawer.setAttribute('aria-hidden','true');
+      }
+
+      dBackdrop.addEventListener('click', closeDrawer);
+      dClose.addEventListener('click', closeDrawer);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDrawer();
+      });
+
+      // utils
+      function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+      function escapeAttr(s){ return escapeHTML(String(s)).replace(/"/g,'&quot;'); }
     })();
   </script>
 </body>
