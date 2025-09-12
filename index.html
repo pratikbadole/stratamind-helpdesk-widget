@@ -74,5 +74,13 @@
     </footer>
   </div>
 </div>
+  <script>
+  // Set --vh to the real viewport height unit (handles iOS URL bar)
+  const setVH = () => {
+    document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+  };
+  setVH();
+  window.addEventListener('resize', setVH);
+</script>
 </body>
 </html>
