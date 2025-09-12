@@ -337,7 +337,16 @@ Reply **not fixed** if it’s still unstable.`;
 
   newChatBtn.addEventListener('click', () => { newChat(); renderMessages(); });
   kbBtn.addEventListener('click', (e) => { e.preventDefault(); alert('Knowledge Hub — coming soon'); });
-  ticketsBtn.addEventListener('click', (e) => { e.preventDefault(); alert('Tickets — coming soon'); });
+
+  // ✅ Updated Tickets button: navigate to tickets page (with optional redirect hint)
+  ticketsBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const url = new URL('./tickets.html', location.origin);
+    if (!window.SUPABASE_TOKEN) {
+      url.searchParams.set('redirect', './tickets.html');
+    }
+    location.href = url.toString();
+  });
 
   // ───────────────────────────── ticket modal ──────────────────────────────
   function openTicketModal(){
