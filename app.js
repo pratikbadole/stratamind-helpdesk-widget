@@ -252,7 +252,7 @@ Reply **not fixed** if it’s still unstable.`;
       chat: serializeChatForTicket(chatMessages)
     };
 
-    // ✅ Add Authorization header if a Supabase token is present
+    // Add Authorization header if a Supabase token is present
     const headers = { 'Content-Type': 'application/json' };
     if (window.SUPABASE_TOKEN) {
       headers.Authorization = `Bearer ${window.SUPABASE_TOKEN}`;
@@ -274,7 +274,7 @@ Reply **not fixed** if it’s still unstable.`;
     const userLast = [...chat.messages].reverse().find(m => m.role === 'user')?.content || '';
 
     const saidNotFixed = /\b(not\s+fixed|still\s+not|doesn'?t\s+work|no\s+luck)\b/i.test(userLast);
-    the softAck = /\b(ok|okay|hmm|still|same|nope)\b/i.test(userLast);
+    const softAck      = /\b(ok|okay|hmm|still|same|nope)\b/i.test(userLast);
     const assistantReplies = chat.messages.filter(m => m.role === 'assistant').length;
 
     return (saidNotFixed && assistantReplies >= 1) ||
@@ -338,7 +338,7 @@ Reply **not fixed** if it’s still unstable.`;
   newChatBtn.addEventListener('click', () => { newChat(); renderMessages(); });
   kbBtn.addEventListener('click', (e) => { e.preventDefault(); alert('Knowledge Hub — coming soon'); });
 
-  // ⛔ Tickets button blocked for now (roadmap)
+  // Tickets button blocked for now (roadmap)
   ticketsBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     alert('Tickets dashboard is coming soon — stay tuned!');
