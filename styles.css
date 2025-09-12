@@ -9,7 +9,27 @@
   --brand-2:#814ACB;
   --stroke:rgba(255,255,255,.08);
 }
+/* Stop iOS auto-zoom on focus */
+html { -webkit-text-size-adjust: 100%; }
+input, textarea, select, button { font-size: 16px; }
 
+/* Make the chat app height stable on mobile (no jump when URL bar hides) */
+.app { height: 100dvh; }        /* modern mobile units */
+@supports not (height: 100dvh) {
+  .app { height: 100vh; }       /* fallback */
+}
+
+/* Keep the composer pinned above the keyboard */
+.composer { position: sticky; bottom: 0; }
+
+/* Ensure the textarea itself is 16px too (your body is 14px) */
+.composer textarea {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+/* Reduce bouncing & accidental page scrolls inside the chat */
+.messages { overscroll-behavior: contain; }
 *{ box-sizing:border-box }
 html,body{ height:100% }
 
