@@ -380,7 +380,10 @@ Reply **not fixed** if it’s still unstable.`;
       alert('Error: ticket not created. Check function logs & env.');
     }
   };
-
+    // Keep latest messages visible when inputs focus (mobile keyboards)
+window.addEventListener('focusin', () => {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+});
   // ─────────────────────────────── boot ────────────────────────────────────
   newChat();
   renderMessages();
