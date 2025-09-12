@@ -241,3 +241,48 @@ html, body { height: 100%; overflow: hidden; }
 .embed .actions{ display:none; }        /* hides KnowledgeHub/Tickets buttons in topbar */
 .embed .topbar{ padding:10px 12px; }
 .embed body, .embed html{ height:100%; }
+/* --- Mobile layout pass --- */
+@media (max-width: 768px) {
+
+  /* Hide the chat history column */
+  #history {
+    display: none !important;
+  }
+
+  /* Let the main area use the full width */
+  .main, #messages {
+    width: 100% !important;
+  }
+
+  /* Make the messages panel fill the viewport,
+     leaving room for the input at the bottom */
+  #messages {
+    /* adjust the 76px if your input bar is taller/shorter */
+    height: calc(100dvh - 76px) !important;
+    overflow-y: auto;
+  }
+
+  /* Keep the composer (form) stuck to the bottom */
+  #chatForm {
+    position: sticky;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);      /* or your panel color */
+    backdrop-filter: blur(6px);       /* optional nicety */
+    padding: 10px 12px;               /* space around input */
+    border-top: 1px solid var(--stroke, rgba(255,255,255,.1));
+  }
+
+  /* Make the input comfortable to tap */
+  #input {
+    min-height: 42px;
+    line-height: 1.3;
+  }
+
+  /* Keep top-right buttons from overflowing */
+  .topbar,
+  .topbar .right,
+  .topbar .buttons {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
