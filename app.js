@@ -274,7 +274,7 @@ Reply **not fixed** if it’s still unstable.`;
     const userLast = [...chat.messages].reverse().find(m => m.role === 'user')?.content || '';
 
     const saidNotFixed = /\b(not\s+fixed|still\s+not|doesn'?t\s+work|no\s+luck)\b/i.test(userLast);
-    const softAck      = /\b(ok|okay|hmm|still|same|nope)\b/i.test(userLast);
+    the softAck      = /\b(ok|okay|hmm|still|same|nope)\b/i.test(userLast);
     const assistantReplies = chat.messages.filter(m => m.role === 'assistant').length;
 
     return (saidNotFixed && assistantReplies >= 1) ||
@@ -308,11 +308,11 @@ Reply **not fixed** if it’s still unstable.`;
     input.value = '';
 
     // placeholder bubble while waiting
-    const bubble = appendMsg({ role: 'assistant', meta: 'StrataMind AI' });
+    const bubble = appendMsg({ role: 'assistant', meta: 'TriKash AI' });
     bubble.innerHTML = '<em>Thinking…</em>';
 
     const reply = await sendToModel(chat.messages.map(m => ({ role: m.role, content: m.content })));
-    chat.messages.push({ role: 'assistant', content: reply, meta: 'StrataMind AI' });
+    chat.messages.push({ role: 'assistant', content: reply, meta: 'TriKash AI' });
     chat.offers = (chat.offers || 0) + 1;
 
     // update title on first user message
@@ -338,14 +338,10 @@ Reply **not fixed** if it’s still unstable.`;
   newChatBtn.addEventListener('click', () => { newChat(); renderMessages(); });
   kbBtn.addEventListener('click', (e) => { e.preventDefault(); alert('Knowledge Hub — coming soon'); });
 
-  // ✅ Updated Tickets button: navigate to tickets page (with optional redirect hint)
+  // ⛔ Tickets button blocked for now (roadmap)
   ticketsBtn?.addEventListener('click', (e) => {
     e.preventDefault();
-    const url = new URL('./tickets.html', location.origin);
-    if (!window.SUPABASE_TOKEN) {
-      url.searchParams.set('redirect', './tickets.html');
-    }
-    location.href = url.toString();
+    alert('Tickets dashboard is coming soon — stay tuned!');
   });
 
   // ───────────────────────────── ticket modal ──────────────────────────────
@@ -378,7 +374,7 @@ Reply **not fixed** if it’s still unstable.`;
 
       closeTicketModal();
       const conf = `Ticket **#${id}** created. Our team will follow up.\n\nSubject: **${subject}**`;
-      chat.messages.push({ role:'assistant', content: conf, meta:'StrataMind AI' });
+      chat.messages.push({ role:'assistant', content: conf, meta: 'TriKash AI' });
       renderMessages();
     } catch(err){
       alert('Error: ticket not created. Check function logs & env.');
