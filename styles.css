@@ -306,3 +306,6 @@ html, body { height: 100%; overflow: hidden; }
     gap: 8px;
   }
 }
+/* icon links inside bubbles */
+.icon-link { display:inline-block; margin-right:8px; line-height:1; }
+.icon-link svg { display:inline-block; }
