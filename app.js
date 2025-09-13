@@ -38,7 +38,26 @@
     // markdown links: [text](https://...)
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, text, url) => {
       const safeUrl = url.replace(/"/g, '&quot;');
-      return `<a href="${safeUrl}" target="_blank" rel="noopener">${text}</a>`;
+      let label = text;
+
+      // swap label with icon-only when it is "LinkedIn" or "Instagram"
+      if (/^linkedin$/i.test(text)) {
+        label = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+               viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;">
+            <path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM0 8.98h5v14H0zM8.5 8.98h4.79v1.91h.07c.67-1.26 2.3-2.59 4.73-2.59 5.06 0 5.99 3.33 5.99 7.66v8.02h-5v-7.11c0-1.69-.03-3.86-2.35-3.86-2.35 0-2.71 1.83-2.71 3.73v7.24h-5v-14z"/>
+          </svg>
+        `;
+      } else if (/^instagram$/i.test(text)) {
+        label = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+               viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;">
+            <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5A5.5 5.5 0 1 1 6.5 13 5.51 5.51 0 0 1 12 7.5zm0 2A3.5 3.5 0 1 0 15.5 13 3.5 3.5 0 0 0 12 9.5zM18.5 6a1 1 0 1 1-1 1 1 1 0 0 1 1-1z"/>
+          </svg>
+        `;
+      }
+
+      return `<a class="icon-link" href="${safeUrl}" target="_blank" rel="noopener">${label}</a>`;
     });
 
     // autolink bare URLs (after escaping; won’t double-link labeled ones)
@@ -231,7 +250,7 @@
   }
 
   // ── Bot-voice bio (long) used on creator queries ────────────────────────
-  const PRAKIK_BIO = (
+  const PRATIK_BIO = (
     `The human behind me is **Pratik Badole** — builder of this bot, dreamer of mountains, and collector of hobbies. ` +
     `He loves photography, trekking, doodling, and poetry… basically, he does everything except sleep on time.\n\n` +
     `Fun fact: he was listening to ghazals while coding me (yes, dramatic debugging is real).\n` +
@@ -252,7 +271,7 @@
 
     // Who is Pratik / who built you / designer / coder -> long bio with links
     if (/\b(who\s+is\s+pratik(?:\s+badole)?|designer|who\s+built\s+you|who\s+made\s+you|who\s+created\s+you|your\s+creator|your\s+coder|who\s+designed\s+you)\b/i.test(last)){
-      return PRAKIK_BIO;
+      return PRATIK_BIO;
     }
 
     // General-knowledge/off-scope nudge back to IT
