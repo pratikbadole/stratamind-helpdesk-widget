@@ -25,8 +25,8 @@
   let currentId = null;
 
   // ───────────────────────────────── utils ─────────────────────────────────
-  // tiny Markdown → HTML (headings, **bold**, *em*, `code`, bullets, numbers)
-  // Supports: [label](url) and auto-links bare http(s) URLs
+  // Markdown → HTML (headings, **bold**, *em*, `code`, bullets, numbers)
+  // Supports: [label](url). Also auto-links bare URLs, but NEVER inside <a>…</a>.
   function mdToHtml(src){
     let s = (src || '').replace(/\r\n?/g, '\n');
 
@@ -40,7 +40,7 @@
       const safeUrl = url.replace(/"/g, '&quot;');
       let label = text;
 
-      // swap label with icon-only when it is "LinkedIn" or "Instagram"
+      // Convert "LinkedIn"/"Instagram" labels to SVG icons (icon-only)
       if (/^linkedin$/i.test(text)) {
         label = `
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
@@ -60,11 +60,16 @@
       return `<a class="icon-link" href="${safeUrl}" target="_blank" rel="noopener">${label}</a>`;
     });
 
-    // autolink bare URLs (after escaping; won’t double-link labeled ones)
-    s = s.replace(/https?:\/\/[^\s)]+/g, u => {
-      const safe = u.replace(/"/g, '&quot;');
-      return `<a href="${safe}" target="_blank" rel="noopener">${u}</a>`;
-    });
+    // auto-link bare URLs, but NOT inside existing anchors
+    const parts = s.split(/(<a\b[^>]*>.*?<\/a>)/gis);
+    for (let i = 0; i < parts.length; i += 2) {
+      // Only process non-anchor segments (even indices)
+      parts[i] = parts[i].replace(/https?:\/\/[^\s)]+/g, (u) => {
+        const safe = u.replace(/"/g, '&quot;');
+        return `<a href="${safe}" target="_blank" rel="noopener">${u}</a>`;
+      });
+    }
+    s = parts.join('');
 
     // normalize "• " bullets to "- "
     s = s.replace(/^\s*•\s+/gm, '- ');
@@ -95,7 +100,7 @@
         continue;
       }
 
-      // "Step title" pattern:  `1. Something:`  (numbered section header)
+      // "Step title" pattern:  `1. Something:`
       const step = line.match(/^\s*(\d+)\.\s+(.+?):\s*$/);
       if (step){
         closeLists();
