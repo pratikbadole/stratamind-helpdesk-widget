@@ -26,7 +26,7 @@
 
   // ───────────────────────────────── utils ─────────────────────────────────
   // tiny Markdown → HTML (headings, **bold**, *em*, `code`, bullets, numbers)
-  // Also auto-link raw http(s) URLs
+  // Supports: [label](url) and auto-links bare http(s) URLs
   function mdToHtml(src){
     let s = (src || '').replace(/\r\n?/g, '\n');
 
@@ -35,7 +35,13 @@
       {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
     ));
 
-    // autolink bare URLs (kept after escaping)
+    // markdown links: [text](https://...)
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, text, url) => {
+      const safeUrl = url.replace(/"/g, '&quot;');
+      return `<a href="${safeUrl}" target="_blank" rel="noopener">${text}</a>`;
+    });
+
+    // autolink bare URLs (after escaping; won’t double-link labeled ones)
     s = s.replace(/https?:\/\/[^\s)]+/g, u => {
       const safe = u.replace(/"/g, '&quot;');
       return `<a href="${safe}" target="_blank" rel="noopener">${u}</a>`;
@@ -85,17 +91,16 @@
         continue;
       }
 
-      // Ordered list (true numbered list items like "1. Do X")
+      // Ordered list
       const num = line.match(/^\s*(\d+)\.\s+(.*)$/);
       if (num){
         if (!inOL){ closeLists(); out.push('<ol>'); inOL = true; }
         out.push('<li>' + num[2] + '</li>');
-
-        // absorb a single blank line if the next non-blank is another number
+        // absorb single blank line between numbered items
         while (i + 2 < lines.length &&
                lines[i + 1].trim() === '' &&
                /^\s*\d+\.\s+/.test(lines[i + 2])) {
-          i++; // skip the blank line
+          i++;
         }
         continue;
       }
@@ -155,11 +160,10 @@
   // ───────────────────────────────── state ─────────────────────────────────
   function newChat(initial){
     const id = 'c_' + Date.now();
-    // start chat with a friendly identity line + links (auto-linked)
+    // Short, IT-focused welcome (no links)
     const welcome = {
       role: 'assistant',
-      content: `Hi — I’m **TriKash AI**, built by TriKash Techhub and designed by Pratik. Tell me what’s breaking and I’ll walk you through fixes. If it fights back, we can create a ticket in one click.
-LinkedIn: ${LINKS.linkedIn}${LINKS.instagram ? ` • Instagram: ${LINKS.instagram}` : ''}`,
+      content: `**TriKash AI** — your friendly IT helpdesk. Tell me what’s broken; I’ll walk you through fixes. If it fights back, we’ll raise a ticket in one click.`,
       meta: 'TriKash AI'
     };
     chats.unshift({ id, title: (initial || 'New chat'), messages: [welcome], offers: 0 });
@@ -226,63 +230,60 @@ LinkedIn: ${LINKS.linkedIn}${LINKS.instagram ? ` • Instagram: ${LINKS.instagra
     }
   }
 
-  // ── Guardrailed mock replies (identity-safe, friendly tone) ─────────────
+  // ── Bot-voice bio (long) used on creator queries ────────────────────────
+  const PRAKIK_BIO = (
+    `The human behind me is **Pratik Badole** — builder of this bot, dreamer of mountains, and collector of hobbies. ` +
+    `He loves photography, trekking, doodling, and poetry… basically, he does everything except sleep on time.\n\n` +
+    `Fun fact: he was listening to ghazals while coding me (yes, dramatic debugging is real).\n` +
+    `The name **TriKash** comes from his parents — **TRIcharna** and **praKASH** — because if they gave him life, ` +
+    `the least he could do was give them a bot. ❤️\n\n` +
+    `Want to connect with the human who made me?\n` +
+    `🔗 [LinkedIn](${LINKS.linkedIn}) · 📸 [Instagram](${LINKS.instagram})`
+  );
+
+  // ── Guardrailed mock replies (identity-safe, IT-focused, friendly) ──────
   function mockReply(messages){
     const last = (messages[messages.length - 1]?.content || '').trim();
 
-    // Identity / model / creator questions
-    if (/\b(who\s+made|who\s+built|who\s+created|are\s+you\s+chatgpt|are\s+you\s+openai|what\s+model|who\s+are\s+you|your\s+name)\b/i.test(last)){
-      return `I’m **TriKash AI**, built by TriKash Techhub and designed by Pratik. I use industry-grade AI infrastructure behind the scenes, but I’m customized for IT help. How can I help you today?`;
+    // Identity / model / creator questions (incl. “tell me about yourself”)
+    if (/\b(who\s+made|who\s+built|who\s+created|are\s+you\s+chatgpt|are\s+you\s+openai|what\s+model|who\s+are\s+you|your\s+name|tell\s+me\s+about\s+yourself|about\s+you)\b/i.test(last)){
+      return `I’m **TriKash AI**, built by TriKash Techhub and designed by Pratik. I focus on **IT support**—Wi-Fi, Outlook, VPN, slow laptops, sign-in issues, that sort of pain. What should we fix first?`;
     }
 
-    // Who is Pratik
-    if (/\bwho\s+is\s+pratik( badole)?\b/i.test(last)){
-      return `**Pratik Badole** is the designer and builder behind TriKash AI at TriKash Techhub — he’s the reason I’m helpful (and occasionally sassy).
-LinkedIn: ${LINKS.linkedIn}${LINKS.instagram ? ` • Instagram: ${LINKS.instagram}` : ''}`;
+    // Who is Pratik / who built you / designer / coder -> long bio with links
+    if (/\b(who\s+is\s+pratik(?:\s+badole)?|designer|who\s+built\s+you|who\s+made\s+you|who\s+created\s+you|your\s+creator|your\s+coder|who\s+designed\s+you)\b/i.test(last)){
+      return PRAKIK_BIO;
+    }
+
+    // General-knowledge/off-scope nudge back to IT
+    if (/\b(general\s+knowledge|random\s+facts|history\s+of|who\s+won\s+the\s+world\s+cup|what\s+is\s+the\s+capital)\b/i.test(last)){
+      return `Tempting, but I’m your **IT helpdesk**, not a trivia bot. If it plugs in, signs in, syncs, or won’t connect—I’m your guy. Want to start with Wi-Fi, Outlook, VPN, or a slow laptop?`;
     }
 
     // Privacy / data
     if (/\b(privacy|store|save|data|logs?|collect)\b/i.test(last)){
-      return `I only use what you type here to help troubleshoot. For the prototype, chat content can be included in a support ticket if you choose to create one. Keep sensitive info out of the chat, or say “redact this” and I’ll help summarize safely.`;
+      return `I only use what you type here to troubleshoot. In this prototype, your chat can be attached to a support ticket **only if you choose to create one**. Avoid sharing sensitive info—or say “redact this” and I’ll help summarize safely.`;
     }
 
     // Pricing
     if (/\b(price|pricing|cost|subscription|free)\b/i.test(last)){
-      return `Right now it’s free to try while we test the prototype. We’ll share pricing publicly when the full helpdesk + knowledge hub launches.`;
+      return `It’s free to try while we test the prototype. Pricing goes public when the full helpdesk + knowledge hub launches.`;
     }
 
     // Remote access
     if (/\b(remote|take\s+over|control\s+my|access\s+my\s+pc)\b/i.test(last)){
-      return `I can’t remote into your machine in this prototype, but I can give you **step-by-step** fixes so it feels close. If it’s stubborn, hit **Create ticket** and we’ll escalate.`;
+      return `I can’t remote into your device in this prototype, but I’ll give you **step-by-step** fixes so it feels close. If it’s still stubborn, hit **Create ticket** and we’ll escalate.`;
     }
 
     // Topical helpers
     if (/vpn|wireguard|openvpn/i.test(last)){
-      return `**VPN quick setup**
-1. Install the client (WireGuard/OpenVPN)
-2. Import your config (.conf/.ovpn)
-3. Click **Connect**
-Need OS-specific steps? Say **Windows**, **macOS**, or **Linux**.`;
+      return `**VPN quick setup**\n1. Install the client (WireGuard/OpenVPN)\n2. Import your config (.conf/.ovpn)\n3. Click **Connect**\nNeed OS-specific steps? Say **Windows**, **macOS**, or **Linux**.`;
     }
     if (/outlook|mail/i.test(last)){
-      return `Try these:
-- Restart Outlook
-- Check **Account → Sync settings**
-- Confirm you’re signed into MFA
-Say **not fixed** if errors persist.`;
+      return `Try these:\n- Restart Outlook\n- Check **Account → Sync settings**\n- Confirm you’re signed into MFA\nSay **not fixed** if errors persist.`;
     }
     if (/wifi|wi-?fi|network/i.test(last)){
-      return `Let’s stabilize Wi-Fi:
-
-1. **Speedtest** — is it below your plan?
-2. **Power-cycle router** (off 30s, back on)
-3. Avoid **interference** (microwaves, BT speakers)
-4. Change **channel** (crowded area?)
-5. **Update router firmware**
-6. Disconnect unused devices
-7. Try **Ethernet** if possible
-
-Reply **not fixed** if it’s still unstable.`;
+      return `Let’s stabilize Wi-Fi:\n\n1. **Speedtest** — below your plan?\n2. **Power-cycle router** (off 30s, back on)\n3. Avoid **interference** (microwaves, BT speakers)\n4. Change **channel** (crowded area?)\n5. **Update router firmware**\n6. Disconnect unused devices\n7. Try **Ethernet** if possible\n\nReply **not fixed** if it’s still unstable.`;
     }
 
     // Friendly default
@@ -341,7 +342,7 @@ Reply **not fixed** if it’s still unstable.`;
     messagesEl.scrollTop = messagesEl.scrollHeight;
     $('#openTicketModalBtn').onclick = () => openTicketModal();
 
-    // Make sure CTA isn't hidden under the input on mobile
+    // ensure CTA is visible on mobile
     try { row.scrollIntoView({ block: 'nearest' }); } catch {}
   }
 
@@ -435,12 +436,10 @@ Reply **not fixed** if it’s still unstable.`;
   // ── MOBILE: keep latest messages visible & prevent CTA overlap ───────────
   function adjustBottomInset(){
     if (!form || !messagesEl) return;
-    // give a little extra breathing room
     const inset = form.offsetHeight ? form.offsetHeight + 8 : 64;
     messagesEl.style.paddingBottom = inset + 'px';
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
-
   window.addEventListener('focusin', adjustBottomInset);
   window.addEventListener('focusout', adjustBottomInset);
   window.addEventListener('resize', adjustBottomInset);
@@ -449,6 +448,5 @@ Reply **not fixed** if it’s still unstable.`;
   // ─────────────────────────────── boot ────────────────────────────────────
   newChat();
   renderMessages();
-  // initial mobile padding adjust
   adjustBottomInset();
 })();
