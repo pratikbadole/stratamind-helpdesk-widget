@@ -2,6 +2,12 @@
 (() => {
   const $ = (sel, root = document) => root.querySelector(sel);
 
+  // ── profile links (edit if needed) ───────────────────────────────────────
+  const LINKS = {
+    linkedIn: 'https://www.linkedin.com/in/pratikbadole13',
+    instagram: 'https://www.instagram.com/pratik.s.13/'
+  };
+
   const historyEl  = $('#history');
   const messagesEl = $('#messages');
   const form       = $('#chatForm');
@@ -20,7 +26,7 @@
 
   // ───────────────────────────────── utils ─────────────────────────────────
   // tiny Markdown → HTML (headings, **bold**, *em*, `code`, bullets, numbers)
-  // Special: lines like "1. Title:" become a step heading
+  // Also auto-link raw http(s) URLs
   function mdToHtml(src){
     let s = (src || '').replace(/\r\n?/g, '\n');
 
@@ -28,6 +34,12 @@
     s = s.replace(/[&<>"']/g, m => (
       {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
     ));
+
+    // autolink bare URLs (kept after escaping)
+    s = s.replace(/https?:\/\/[^\s)]+/g, u => {
+      const safe = u.replace(/"/g, '&quot;');
+      return `<a href="${safe}" target="_blank" rel="noopener">${u}</a>`;
+    });
 
     // normalize "• " bullets to "- "
     s = s.replace(/^\s*•\s+/gm, '- ');
@@ -143,7 +155,14 @@
   // ───────────────────────────────── state ─────────────────────────────────
   function newChat(initial){
     const id = 'c_' + Date.now();
-    chats.unshift({ id, title: (initial || 'New chat'), messages: [], offers: 0 });
+    // start chat with a friendly identity line + links (auto-linked)
+    const welcome = {
+      role: 'assistant',
+      content: `Hi — I’m **TriKash AI**, built by TriKash Techhub and designed by Pratik. Tell me what’s breaking and I’ll walk you through fixes. If it fights back, we can create a ticket in one click.
+LinkedIn: ${LINKS.linkedIn}${LINKS.instagram ? ` • Instagram: ${LINKS.instagram}` : ''}`,
+      meta: 'TriKash AI'
+    };
+    chats.unshift({ id, title: (initial || 'New chat'), messages: [welcome], offers: 0 });
     currentId = id;
     renderHistory();
   }
@@ -207,28 +226,57 @@
     }
   }
 
+  // ── Guardrailed mock replies (identity-safe, friendly tone) ─────────────
   function mockReply(messages){
-    const last = messages[messages.length - 1]?.content || '';
+    const last = (messages[messages.length - 1]?.content || '').trim();
+
+    // Identity / model / creator questions
+    if (/\b(who\s+made|who\s+built|who\s+created|are\s+you\s+chatgpt|are\s+you\s+openai|what\s+model|who\s+are\s+you|your\s+name)\b/i.test(last)){
+      return `I’m **TriKash AI**, built by TriKash Techhub and designed by Pratik. I use industry-grade AI infrastructure behind the scenes, but I’m customized for IT help. How can I help you today?`;
+    }
+
+    // Who is Pratik
+    if (/\bwho\s+is\s+pratik( badole)?\b/i.test(last)){
+      return `**Pratik Badole** is the designer and builder behind TriKash AI at TriKash Techhub — he’s the reason I’m helpful (and occasionally sassy).
+LinkedIn: ${LINKS.linkedIn}${LINKS.instagram ? ` • Instagram: ${LINKS.instagram}` : ''}`;
+    }
+
+    // Privacy / data
+    if (/\b(privacy|store|save|data|logs?|collect)\b/i.test(last)){
+      return `I only use what you type here to help troubleshoot. For the prototype, chat content can be included in a support ticket if you choose to create one. Keep sensitive info out of the chat, or say “redact this” and I’ll help summarize safely.`;
+    }
+
+    // Pricing
+    if (/\b(price|pricing|cost|subscription|free)\b/i.test(last)){
+      return `Right now it’s free to try while we test the prototype. We’ll share pricing publicly when the full helpdesk + knowledge hub launches.`;
+    }
+
+    // Remote access
+    if (/\b(remote|take\s+over|control\s+my|access\s+my\s+pc)\b/i.test(last)){
+      return `I can’t remote into your machine in this prototype, but I can give you **step-by-step** fixes so it feels close. If it’s stubborn, hit **Create ticket** and we’ll escalate.`;
+    }
+
+    // Topical helpers
     if (/vpn|wireguard|openvpn/i.test(last)){
       return `**VPN quick setup**
-1. Install client (WireGuard/OpenVPN)
+1. Install the client (WireGuard/OpenVPN)
 2. Import your config (.conf/.ovpn)
 3. Click **Connect**
-Need OS-specific steps? Tell me Windows/macOS/Linux.`;
+Need OS-specific steps? Say **Windows**, **macOS**, or **Linux**.`;
     }
     if (/outlook|mail/i.test(last)){
       return `Try these:
 - Restart Outlook
-- Check **Account > Sync settings**
-- Ensure you’re signed into MFA
-Say **not fixed** if you still see errors.`;
+- Check **Account → Sync settings**
+- Confirm you’re signed into MFA
+Say **not fixed** if errors persist.`;
     }
     if (/wifi|wi-?fi|network/i.test(last)){
       return `Let’s stabilize Wi-Fi:
 
-1. **Speedtest** (is it below your plan?)
+1. **Speedtest** — is it below your plan?
 2. **Power-cycle router** (off 30s, back on)
-3. Move away from **interference** (microwave, BT speakers)
+3. Avoid **interference** (microwaves, BT speakers)
 4. Change **channel** (crowded area?)
 5. **Update router firmware**
 6. Disconnect unused devices
@@ -236,7 +284,9 @@ Say **not fixed** if you still see errors.`;
 
 Reply **not fixed** if it’s still unstable.`;
     }
-    return `Tell me your issue (e.g., *Teams mic not working on Mac*), and I’ll walk you through fixes.`;
+
+    // Friendly default
+    return `Tell me your IT issue (e.g., *Teams mic not working on Mac*), and I’ll walk you through the quickest fixes.`;
   }
 
   // ─────────────────────────── backend: tickets ────────────────────────────
@@ -272,11 +322,9 @@ Reply **not fixed** if it’s still unstable.`;
   // ───────────────────── ticket CTA gating (when to offer) ─────────────────
   function shouldOfferTicket(chat){
     const userLast = [...chat.messages].reverse().find(m => m.role === 'user')?.content || '';
-
     const saidNotFixed = /\b(not\s+fixed|still\s+not|doesn'?t\s+work|no\s+luck)\b/i.test(userLast);
     const softAck      = /\b(ok|okay|hmm|still|same|nope)\b/i.test(userLast);
     const assistantReplies = chat.messages.filter(m => m.role === 'assistant').length;
-
     return (saidNotFixed && assistantReplies >= 1) ||
            (softAck && assistantReplies >= 2);
   }
@@ -292,6 +340,9 @@ Reply **not fixed** if it’s still unstable.`;
     messagesEl.appendChild(row);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     $('#openTicketModalBtn').onclick = () => openTicketModal();
+
+    // Make sure CTA isn't hidden under the input on mobile
+    try { row.scrollIntoView({ block: 'nearest' }); } catch {}
   }
 
   // ─────────────────────────────── events ──────────────────────────────────
@@ -380,11 +431,24 @@ Reply **not fixed** if it’s still unstable.`;
       alert('Error: ticket not created. Check function logs & env.');
     }
   };
-    // Keep latest messages visible when inputs focus (mobile keyboards)
-window.addEventListener('focusin', () => {
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-});
+
+  // ── MOBILE: keep latest messages visible & prevent CTA overlap ───────────
+  function adjustBottomInset(){
+    if (!form || !messagesEl) return;
+    // give a little extra breathing room
+    const inset = form.offsetHeight ? form.offsetHeight + 8 : 64;
+    messagesEl.style.paddingBottom = inset + 'px';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  window.addEventListener('focusin', adjustBottomInset);
+  window.addEventListener('focusout', adjustBottomInset);
+  window.addEventListener('resize', adjustBottomInset);
+  window.addEventListener('orientationchange', adjustBottomInset);
+
   // ─────────────────────────────── boot ────────────────────────────────────
   newChat();
   renderMessages();
+  // initial mobile padding adjust
+  adjustBottomInset();
 })();
