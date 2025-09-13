@@ -40,21 +40,11 @@
       const safeUrl = url.replace(/"/g, '&quot;');
       let label = text;
 
-      // Convert "LinkedIn"/"Instagram" labels to SVG icons (icon-only)
+      // Use single-line SVGs so our line-by-line paragraphizer doesn't split them
       if (/^linkedin$/i.test(text)) {
-        label = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-               viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;">
-            <path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM0 8.98h5v14H0zM8.5 8.98h4.79v1.91h.07c.67-1.26 2.3-2.59 4.73-2.59 5.06 0 5.99 3.33 5.99 7.66v8.02h-5v-7.11c0-1.69-.03-3.86-2.35-3.86-2.35 0-2.71 1.83-2.71 3.73v7.24h-5v-14z"/>
-          </svg>
-        `;
+        label = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM0 8.98h5v14H0zM8.5 8.98h4.79v1.91h.07c.67-1.26 2.3-2.59 4.73-2.59 5.06 0 5.99 3.33 5.99 7.66v8.02h-5v-7.11c0-1.69-.03-3.86-2.35-3.86-2.35 0-2.71 1.83-2.71 3.73v7.24h-5v-14z"/></svg>`;
       } else if (/^instagram$/i.test(text)) {
-        label = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-               viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;">
-            <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5A5.5 5.5 0 1 1 6.5 13 5.51 5.51 0 0 1 12 7.5zm0 2A3.5 3.5 0 1 0 15.5 13 3.5 3.5 0 0 0 12 9.5zM18.5 6a1 1 0 1 1-1 1 1 1 0 0 1 1-1z"/>
-          </svg>
-        `;
+        label = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5A5.5 5.5 0 1 1 6.5 13 5.51 5.51 0 0 1 12 7.5zm0 2A3.5 3.5 0 1 0 15.5 13 3.5 3.5 0 0 0 12 9.5zM18.5 6a1 1 0 1 1-1 1 1 1 0 0 1 1-1z"/></svg>`;
       }
 
       return `<a class="icon-link" href="${safeUrl}" target="_blank" rel="noopener">${label}</a>`;
@@ -63,7 +53,6 @@
     // auto-link bare URLs, but NOT inside existing anchors
     const parts = s.split(/(<a\b[^>]*>.*?<\/a>)/gis);
     for (let i = 0; i < parts.length; i += 2) {
-      // Only process non-anchor segments (even indices)
       parts[i] = parts[i].replace(/https?:\/\/[^\s)]+/g, (u) => {
         const safe = u.replace(/"/g, '&quot;');
         return `<a href="${safe}" target="_blank" rel="noopener">${u}</a>`;
@@ -100,7 +89,7 @@
         continue;
       }
 
-      // "Step title" pattern:  `1. Something:`
+      // "Step title" pattern
       const step = line.match(/^\s*(\d+)\.\s+(.+?):\s*$/);
       if (step){
         closeLists();
@@ -120,12 +109,9 @@
       if (num){
         if (!inOL){ closeLists(); out.push('<ol>'); inOL = true; }
         out.push('<li>' + num[2] + '</li>');
-        // absorb single blank line between numbered items
         while (i + 2 < lines.length &&
                lines[i + 1].trim() === '' &&
-               /^\s*\d+\.\s+/.test(lines[i + 2])) {
-          i++;
-        }
+               /^\s*\d+\.\s+/.test(lines[i + 2])) { i++; }
         continue;
       }
 
@@ -160,7 +146,6 @@
         }
         return;
       }
-      // Element
       const clone = node.cloneNode(false);
       mount.appendChild(clone);
       for (const child of Array.from(node.childNodes)){
@@ -184,7 +169,6 @@
   // ───────────────────────────────── state ─────────────────────────────────
   function newChat(initial){
     const id = 'c_' + Date.now();
-    // Short, IT-focused welcome (no links)
     const welcome = {
       role: 'assistant',
       content: `**TriKash AI** — your friendly IT helpdesk. Tell me what’s broken; I’ll walk you through fixes. If it fights back, we’ll raise a ticket in one click.`,
@@ -254,7 +238,7 @@
     }
   }
 
-  // ── Bot-voice bio (long) used on creator queries ────────────────────────
+  // Bio text used on creator queries
   const PRATIK_BIO = (
     `The human behind me is **Pratik Badole** — builder of this bot, dreamer of mountains, and collector of hobbies. ` +
     `He loves photography, trekking, doodling, and poetry… basically, he does everything except sleep on time.\n\n` +
@@ -366,7 +350,6 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
     $('#openTicketModalBtn').onclick = () => openTicketModal();
 
-    // ensure CTA is visible on mobile
     try { row.scrollIntoView({ block: 'nearest' }); } catch {}
   }
 
@@ -391,13 +374,11 @@
     chat.messages.push({ role: 'assistant', content: reply, meta: 'TriKash AI' });
     chat.offers = (chat.offers || 0) + 1;
 
-    // update title on first user message
     if (chat.title === 'New chat' && chat.messages[0]?.role === 'user'){
       chat.title = chat.messages[0].content.slice(0, 40);
       renderHistory();
     }
 
-    // final render in the same bubble (typewriter optional)
     if (TYPEWRITER){
       bubble.innerHTML = '';
       await typeInto(bubble, mdToHtml(reply), TYPE_SPEED);
@@ -406,7 +387,6 @@
     }
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    // gate ticket CTA
     chat._showTicketCTA = shouldOfferTicket(chat);
     if (chat._showTicketCTA) insertTicketCTA();
   });
@@ -414,7 +394,6 @@
   newChatBtn.addEventListener('click', () => { newChat(); renderMessages(); });
   kbBtn.addEventListener('click', (e) => { e.preventDefault(); alert('Knowledge Hub — coming soon'); });
 
-  // Tickets button blocked for now (roadmap)
   ticketsBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     alert('Tickets dashboard is coming soon — stay tuned!');
